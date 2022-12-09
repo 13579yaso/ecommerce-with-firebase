@@ -1,6 +1,10 @@
 import 'package:first_app/modules/HomeScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../data/models/user_model.dart';
+import '../data/repository_implementation/auth_repository_implementation.dart';
+import '../domain/usecase/createprofile_usecase.dart';
+import '../domain/usecase/signup_usecase.dart';
 import 'CustomStateFulTextField.dart';
 import 'CustomTextField.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,10 +19,26 @@ class _SingUpScreenState extends State<SingUpScreen> {
   TextEditingController passwordController = TextEditingController();
   TextEditingController phoneController = TextEditingController();
   TextEditingController nameController = TextEditingController();
-
+  // initialize repo impl
+  final  _authRepositoryImplementation = AuthRepositoryImplementation();
+  // declare use cases
+  late SignupUseCase _signupUseCase;
+  late CreateProfileUseCase _createProfileUseCase;
+  @override
+  initState(){
+    super.initState();
+    // initialize use cases
+    _signupUseCase = SignupUseCase(repoImpl: _authRepositoryImplementation);
+    _createProfileUseCase = CreateProfileUseCase(repoImpl: _authRepositoryImplementation);
+  }
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return  WillPopScope(
+        onWillPop: (){
+      return Future.value(false);
+    },
+    child: Scaffold(
+      backgroundColor: Colors.white,
       body:  SingleChildScrollView(
         padding: EdgeInsets.all(20),
         child: Column(
@@ -141,18 +161,44 @@ class _SingUpScreenState extends State<SingUpScreen> {
                  ),
                  alignment: Alignment.center,
                  child: InkWell(
-                   onTap: (){
-                     register(context,emailController.text, passwordController.text);
-                   },
-                   child: Text(
-                     'Register',
-                     style: TextStyle(
-                         fontSize: 30,
-                         fontWeight: FontWeight.bold,
-                         color: Colors.white
-                     ),
-                   ),
+                    onTap:()async {
+                      final userCredentialResult = await _signupUseCase
+                          .signupUseCase(emailController.text,
+                          passwordController.text);
+                      if (userCredentialResult == null) {
+                        print("error");
+                      } else {
+                        print(userCredentialResult.user?.uid);
+                        final createProfileResult = await _createProfileUseCase
+                            .createProfileUseCase(
+                          UserModel(
+                              name: nameController.text,
+                              phone: phoneController.text,
+                              email: emailController.text,
+                              id: userCredentialResult.user?.uid
+                          ),
+                        );
+                        if (createProfileResult == true) {
+                          Navigator.pushAndRemoveUntil(context,
+                            MaterialPageRoute(
+                                builder: (builder) => HomeScreen()),
+                                (route) => false,
+                          );
+                        }
+                      }
+                      },
+
+                      child:
+                      Text(
+                        'Register',
+                        style: TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white
                  ),
+                      )
+
+                    ),
                ),
              ],
            )
@@ -160,7 +206,7 @@ class _SingUpScreenState extends State<SingUpScreen> {
           ],
         ),
       ),
-
+    )
     );
   }
   void register(BuildContext context,String userEmail , String userPassword)async{
