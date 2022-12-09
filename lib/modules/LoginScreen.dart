@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../data/repository_implementation/auth_repository_implementation.dart';
+import '../domain/usecase/login_usecase.dart';
 import 'CustomTextField.dart';
 import 'HomeScreen.dart';
 import 'SingUp.dart';
@@ -14,6 +15,13 @@ class _LoginScreenState extends State<LoginScreen> {
   Color greyColor =const Color(0xffA71E27);
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
+  late LoginUseCase _loginUseCase;
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _loginUseCase = LoginUseCase(AuthRepositoryImplementation());
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -118,11 +126,23 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             alignment: Alignment.center,
             child: InkWell(
-              onTap: (){
-                signIn(emailController.text,passwordController.text,context);
+              onTap: ()async {
+                final result = await _loginUseCase.loginUseCase(
+                    emailController.text, passwordController.text);
+                if (result == null) {
+                  print("Error");
+                } else {
+                  print(result.user?.uid);
+                  // ignore: use_build_context_synchronously
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (builder) => HomeScreen()),
+                        (route) => false,
+                  );
+                }
               },
-              child: Text(
-                'Login',
+                               child: Text(
+                'Log In',
                 style: TextStyle(
                     fontSize: 30,
                     fontWeight: FontWeight.bold,
@@ -131,68 +151,11 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-          SizedBox(
-            height: 20,
 
-          ),
-          Container(
-            width: 150,
-            height: 64,
-            decoration: BoxDecoration(
-              boxShadow: [
-                BoxShadow(
-                  color: greyColor.withOpacity(0.5),
-                  spreadRadius: 3,
-                  blurRadius: 5,
-                  offset: Offset(0, 3), // changes position of shadow
-                ),
-              ],
-              color: greyColor,
-              borderRadius: BorderRadius.circular(28),
-            ),
-            alignment: Alignment.center,
-            child: InkWell(
-              onTap: (){
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) =>  HomeScreen()),
-                );
-              },
-              child: Text(
-                'Home',
-                style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
-  void signIn(String mail,String password, BuildContext context)async{
-    try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: mail,
-          password: password
-      ).then((value) {
-        print("logged in ${value.user?.uid}");
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder:(co)=>HomeScreen()),
-              (route)=>false,
-        );
-      });
 
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') {
-        print('No user found for that email.');
-      } else if (e.code == 'wrong-password') {
-        print('Wrong password provided for that user.');
-      }
-    }
-  }
 }
 
